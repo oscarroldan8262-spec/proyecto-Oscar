@@ -1,0 +1,114 @@
+@if (!fb.authReady()) {
+  <div class="min-h-screen bg-[#F5F7F8] flex items-center justify-center p-6">
+    <div class="flex items-center gap-3 px-5 py-3.5 rounded-xl bg-white border border-[#DCE8F1] shadow-sm text-sm text-[#344054]">
+      <mat-icon class="animate-spin text-[#7FB59A]">sync</mat-icon>
+      <span>Iniciando Bitácora Digital de Cambio de Turno...</span>
+    </div>
+  </div>
+} @else if (!fb.user()) {
+  <app-login-view />
+} @else {
+  <div class="min-h-screen bg-[#F5F7F8] flex text-[#344054]">
+    <!-- Desktop / Landscape Tablet Sidebar -->
+    <div class="hidden lg:block shrink-0">
+      <app-sidebar
+        [userName]="displayUserName()"
+        (signOutRequested)="signOut()"
+      />
+    </div>
+
+    <!-- Mobile / Portrait Drawer Overlay -->
+    @if (mobileMenuOpen()) {
+      <div class="fixed inset-0 z-50 flex lg:hidden">
+        <div
+          class="fixed inset-0 bg-[#344054]/30"
+          (click)="closeMobileMenu()"
+          aria-hidden="true"
+        ></div>
+        <div class="relative z-10">
+          <app-sidebar
+            [userName]="displayUserName()"
+            (navChanged)="closeMobileMenu()"
+            (signOutRequested)="signOut()"
+          />
+        </div>
+      </div>
+    }
+
+    <!-- Main Content Viewport -->
+    <div class="flex-1 min-w-0 flex flex-col">
+      <app-top-header
+        [userName]="displayUserName()"
+        (toggleMobileMenu)="toggleMobileMenu()"
+      />
+
+      @if (fb.offlineWarning()) {
+        <div class="mx-4 lg:mx-6 mt-4 px-4 py-2.5 rounded-xl bg-[#F7E8B5] border border-[#E6CB78] text-xs text-[#344054] flex items-center gap-2">
+          <mat-icon class="!text-[18px] !w-[18px] !h-[18px]">wifi_off</mat-icon>
+          <span>Sin conexión con el servidor de base de datos. Verifica tu configuración de red.</span>
+        </div>
+      }
+
+      <main class="flex-1 p-4 lg:p-6 max-w-[1440px] w-full mx-auto">
+        @switch (store.activeNav()) {
+          @case ('dashboard') {
+            <app-dashboard-view />
+          }
+          @case ('bitacoras') {
+            <app-bitacoras-view />
+          }
+          @case ('historial') {
+            <app-historial-view />
+          }
+          @case ('reportes') {
+            <app-reportes-view />
+          }
+          @case ('configuracion') {
+            <app-configuracion-view />
+          }
+        }
+      </main>
+    </div>
+
+    <!-- Floating Toast Notification -->
+    @if (store.toast(); as toastMsg) {
+      <div
+        role="status"
+        class="fixed bottom-5 right-5 z-50 max-w-sm rounded-xl border px-4 py-3 shadow-md flex items-center gap-3 text-xs font-medium text-[#344054] transition-all duration-200"
+        [style.background-color]="
+          toastMsg.type === 'success'
+            ? '#D5EDE3'
+            : toastMsg.type === 'error'
+              ? '#F2D5D8'
+              : '#DCE8F1'
+        "
+        [style.border-color]="
+          toastMsg.type === 'success'
+            ? '#A9C5B5'
+            : toastMsg.type === 'error'
+              ? '#E5A8AF'
+              : '#C7DDF2'
+        "
+      >
+        <mat-icon class="!text-[18px] !w-[18px] !h-[18px]">
+          {{
+            toastMsg.type === 'success'
+              ? 'check_circle'
+              : toastMsg.type === 'error'
+                ? 'error'
+                : 'info'
+          }}
+        </mat-icon>
+        <span class="flex-1">{{ toastMsg.message }}</span>
+        <button
+          type="button"
+          (click)="store.clearToast()"
+          class="p-1 rounded hover:bg-white/40 cursor-pointer"
+          aria-label="Cerrar notificación"
+        >
+          <mat-icon class="!text-[15px] !w-4 !h-4">close</mat-icon>
+        </button>
+      </div>
+    }
+  </div>
+}

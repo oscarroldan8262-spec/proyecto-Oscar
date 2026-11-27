@@ -1,0 +1,251 @@
+{
+  "entities": {
+    "UserPublic": {
+      "title": "UserPublic",
+      "description": "Public operator/supervisor profile without PII.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "role": { "type": "string", "enum": ["supervisor", "admin"] },
+        "area": { "type": "string", "maxLength": 120 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "role", "createdAt", "updatedAt"]
+    },
+    "UserPrivate": {
+      "title": "UserPrivate",
+      "description": "Private user PII document isolated from public reads.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "updatedAt"]
+    },
+    "Supervisor": {
+      "title": "Supervisor",
+      "description": "Plant supervisor directory entry.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "nombre": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "area": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "turnoDefault": { "type": "string", "maxLength": 80 },
+        "activo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "nombre", "area", "activo", "createdAt", "updatedAt"]
+    },
+    "TurnoConfig": {
+      "title": "TurnoConfig",
+      "description": "Shift schedule definition.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "codigo": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "nombre": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "horario": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "activo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "codigo", "nombre", "horario", "activo", "createdAt", "updatedAt"]
+    },
+    "MaquinaCatalogo": {
+      "title": "MaquinaCatalogo",
+      "description": "Catalog of industrial machines in the facility.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "codigo": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "area": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "estadoDefault": { "type": "string", "enum": ["Operando", "Detenida", "Mantenimiento"] },
+        "activo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "codigo", "area", "estadoDefault", "activo", "createdAt", "updatedAt"]
+    },
+    "Bitacora": {
+      "title": "Bitacora",
+      "description": "Shift handover log document with general data, checklist, notes, and summary metrics.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "folio": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "areaLinea": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "fecha": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "maxLength": 10 },
+        "turnoSaliente": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "turnoEntrante": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "supervisorSaliente": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "supervisorEntrante": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "notas": { "type": "string", "maxLength": 4000 },
+        "estado": { "type": "string", "enum": ["borrador", "guardada", "cerrada"] },
+        "equiposLimpios": { "type": "boolean" },
+        "herramientasCompletas": { "type": "boolean" },
+        "materialAbastecido": { "type": "boolean" },
+        "sinRiesgosSeguridad": { "type": "boolean" },
+        "totalProduccion": { "type": "number" },
+        "cumplimientoPromedio": { "type": "number" },
+        "totalIncidencias": { "type": "number" },
+        "incidenciasPendientes": { "type": "number" },
+        "maquinasDetenidas": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "ownerId",
+        "folio",
+        "areaLinea",
+        "fecha",
+        "turnoSaliente",
+        "turnoEntrante",
+        "supervisorSaliente",
+        "supervisorEntrante",
+        "notas",
+        "estado",
+        "equiposLimpios",
+        "herramientasCompletas",
+        "materialAbastecido",
+        "sinRiesgosSeguridad",
+        "totalProduccion",
+        "cumplimientoPromedio",
+        "totalIncidencias",
+        "incidenciasPendientes",
+        "maquinasDetenidas",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Evento": {
+      "title": "Evento",
+      "description": "Timeline event recorded during a shift.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "bitacoraId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "hora": { "type": "string", "minLength": 4, "maxLength": 10 },
+        "fecha": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "maxLength": 10 },
+        "categoria": { "type": "string", "enum": ["ANOMALÍA", "PENDIENTE", "AJUSTE", "MANTENIMIENTO", "PRODUCCIÓN"] },
+        "titulo": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "descripcion": { "type": "string", "maxLength": 1000 },
+        "responsable": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "estado": { "type": "string", "enum": ["Abierto", "En seguimiento", "Cerrado"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "bitacoraId", "hora", "fecha", "categoria", "titulo", "descripcion", "responsable", "estado", "createdAt", "updatedAt"]
+    },
+    "Incidencia": {
+      "title": "Incidencia",
+      "description": "Shift incident or pending item tied to a machine.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "bitacoraId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "hora": { "type": "string", "minLength": 4, "maxLength": 10 },
+        "descripcion": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "maquina": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "estado": { "type": "string", "enum": ["Pendiente", "En proceso", "Resuelto"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "bitacoraId", "hora", "descripcion", "maquina", "estado", "createdAt", "updatedAt"]
+    },
+    "ProduccionItem": {
+      "title": "ProduccionItem",
+      "description": "Production target and actual output row for a product.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "bitacoraId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "producto": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "meta": { "type": "number" },
+        "producido": { "type": "number" },
+        "cumplimiento": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "bitacoraId", "producto", "meta", "producido", "cumplimiento", "createdAt", "updatedAt"]
+    },
+    "MaquinaEstado": {
+      "title": "MaquinaEstado",
+      "description": "Machine operating status recorded in a shift log.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "bitacoraId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "nombre": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "estado": { "type": "string", "enum": ["Operando", "Detenida", "Mantenimiento"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "bitacoraId", "nombre", "estado", "createdAt", "updatedAt"]
+    },
+    "Firma": {
+      "title": "Firma",
+      "description": "Digital signature captured from outgoing or incoming supervisor.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "bitacoraId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "tipo": { "type": "string", "enum": ["saliente", "entrante"] },
+        "supervisor": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "dataUrl": { "type": "string", "maxLength": 150000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "bitacoraId", "tipo", "supervisor", "dataUrl", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserPublic" },
+      "description": "Public user profiles keyed by Firebase Auth UID."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivate" },
+      "description": "Private PII document isolated from non-owners."
+    },
+    "/supervisores/{supervisorId}": {
+      "schema": { "$ref": "#/entities/Supervisor" },
+      "description": "Supervisors configured by the user."
+    },
+    "/turnos/{turnoId}": {
+      "schema": { "$ref": "#/entities/TurnoConfig" },
+      "description": "Shift schedule definitions."
+    },
+    "/maquinas/{maquinaId}": {
+      "schema": { "$ref": "#/entities/MaquinaCatalogo" },
+      "description": "Plant machine catalog."
+    },
+    "/bitacoras/{bitacoraId}": {
+      "schema": { "$ref": "#/entities/Bitacora" },
+      "description": "Industrial shift handover logs."
+    },
+    "/bitacoras/{bitacoraId}/eventos/{eventoId}": {
+      "schema": { "$ref": "#/entities/Evento" },
+      "description": "Chronological timeline events inside a shift log."
+    },
+    "/bitacoras/{bitacoraId}/incidencias/{incidenciaId}": {
+      "schema": { "$ref": "#/entities/Incidencia" },
+      "description": "Incidents and pending items inside a shift log."
+    },
+    "/bitacoras/{bitacoraId}/produccion/{produccionId}": {
+      "schema": { "$ref": "#/entities/ProduccionItem" },
+      "description": "Shift production rows inside a shift log."
+    },
+    "/bitacoras/{bitacoraId}/maquinas/{maquinaId}": {
+      "schema": { "$ref": "#/entities/MaquinaEstado" },
+      "description": "Machine status entries inside a shift log."
+    },
+    "/bitacoras/{bitacoraId}/firmas/{firmaId}": {
+      "schema": { "$ref": "#/entities/Firma" },
+      "description": "Outgoing and incoming supervisor digital signatures inside a shift log."
+    }
+  }
+}

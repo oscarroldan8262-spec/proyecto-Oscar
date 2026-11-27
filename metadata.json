@@ -1,0 +1,8 @@
+{
+  "name": "Bitácora Digital de Cambio de Turno",
+  "description": "Sistema industrial para la gestión de cambios de turno, control de producción, incidencias, estado de maquinaria, checklist de entrega, línea de tiempo y firmas digitales.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

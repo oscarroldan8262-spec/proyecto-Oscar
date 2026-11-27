@@ -1,0 +1,490 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Global Hardened Primitives ---
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidDateStr(d) {
+      return d is string && d.size() == 10 && d.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        request.auth.token.email == 'robertopicen_8262@cieud.edu.mx' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isOwner(uid) {
+      return isVerifiedUser() && request.auth.uid == uid;
+    }
+
+    // --- Validation Blueprints ---
+
+    function isValidUserPublic(data, userId) {
+      return data.keys().hasAll(['uid', 'displayName', 'role', 'area', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'role', 'area', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid == userId && isValidId(data.uid)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120
+        && data.role is string && data.role in ['supervisor', 'admin']
+        && data.area is string && data.area.size() <= 120
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivate(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'updatedAt'])
+        && data.uid is string && data.uid == userId && isValidId(data.uid)
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 200
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSupervisor(data) {
+      return data.keys().hasAll(['ownerId', 'nombre', 'area', 'turnoDefault', 'activo', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'nombre', 'area', 'turnoDefault', 'activo', 'createdAt', 'updatedAt'])
+        && isValidId(data.ownerId)
+        && data.ownerId == request.auth.uid
+        && data.nombre is string && data.nombre.size() >= 1 && data.nombre.size() <= 120
+        && data.area is string && data.area.size() >= 1 && data.area.size() <= 120
+        && data.turnoDefault is string && data.turnoDefault.size() <= 80
+        && data.activo is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidTurno(data) {
+      return data.keys().hasAll(['ownerId', 'codigo', 'nombre', 'horario', 'activo', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'codigo', 'nombre', 'horario', 'activo', 'createdAt', 'updatedAt'])
+        && isValidId(data.ownerId)
+        && data.ownerId == request.auth.uid
+        && data.codigo is string && data.codigo.size() >= 1 && data.codigo.size() <= 40
+        && data.nombre is string && data.nombre.size() >= 1 && data.nombre.size() <= 80
+        && data.horario is string && data.horario.size() >= 1 && data.horario.size() <= 60
+        && data.activo is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMaquinaCatalogo(data) {
+      return data.keys().hasAll(['ownerId', 'codigo', 'area', 'estadoDefault', 'activo', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'codigo', 'area', 'estadoDefault', 'activo', 'createdAt', 'updatedAt'])
+        && isValidId(data.ownerId)
+        && data.ownerId == request.auth.uid
+        && data.codigo is string && data.codigo.size() >= 1 && data.codigo.size() <= 60
+        && data.area is string && data.area.size() >= 1 && data.area.size() <= 120
+        && data.estadoDefault is string && data.estadoDefault in ['Operando', 'Detenida', 'Mantenimiento']
+        && data.activo is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidBitacora(data) {
+      return data.keys().hasAll([
+          'ownerId', 'folio', 'areaLinea', 'fecha', 'turnoSaliente', 'turnoEntrante',
+          'supervisorSaliente', 'supervisorEntrante', 'notas', 'estado',
+          'equiposLimpios', 'herramientasCompletas', 'materialAbastecido', 'sinRiesgosSeguridad',
+          'totalProduccion', 'cumplimientoPromedio', 'totalIncidencias', 'incidenciasPendientes', 'maquinasDetenidas',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'folio', 'areaLinea', 'fecha', 'turnoSaliente', 'turnoEntrante',
+          'supervisorSaliente', 'supervisorEntrante', 'notas', 'estado',
+          'equiposLimpios', 'herramientasCompletas', 'materialAbastecido', 'sinRiesgosSeguridad',
+          'totalProduccion', 'cumplimientoPromedio', 'totalIncidencias', 'incidenciasPendientes', 'maquinasDetenidas',
+          'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.ownerId)
+        && data.folio is string && data.folio.size() >= 1 && data.folio.size() <= 40
+        && data.areaLinea is string && data.areaLinea.size() >= 1 && data.areaLinea.size() <= 120
+        && isValidDateStr(data.fecha)
+        && data.turnoSaliente is string && data.turnoSaliente.size() >= 1 && data.turnoSaliente.size() <= 80
+        && data.turnoEntrante is string && data.turnoEntrante.size() >= 1 && data.turnoEntrante.size() <= 80
+        && data.supervisorSaliente is string && data.supervisorSaliente.size() >= 1 && data.supervisorSaliente.size() <= 120
+        && data.supervisorEntrante is string && data.supervisorEntrante.size() >= 1 && data.supervisorEntrante.size() <= 120
+        && data.notas is string && data.notas.size() <= 4000
+        && data.estado is string && data.estado in ['borrador', 'guardada', 'cerrada']
+        && data.equiposLimpios is bool
+        && data.herramientasCompletas is bool
+        && data.materialAbastecido is bool
+        && data.sinRiesgosSeguridad is bool
+        && data.totalProduccion is number && data.totalProduccion >= 0
+        && data.cumplimientoPromedio is number && data.cumplimientoPromedio >= 0
+        && data.totalIncidencias is number && data.totalIncidencias >= 0
+        && data.incidenciasPendientes is number && data.incidenciasPendientes >= 0
+        && data.maquinasDetenidas is number && data.maquinasDetenidas >= 0
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidEvento(data, bitacoraId) {
+      return data.keys().hasAll(['ownerId', 'bitacoraId', 'hora', 'fecha', 'categoria', 'titulo', 'descripcion', 'responsable', 'estado', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'bitacoraId', 'hora', 'fecha', 'categoria', 'titulo', 'descripcion', 'responsable', 'estado', 'createdAt', 'updatedAt'])
+        && isValidId(data.ownerId)
+        && data.bitacoraId == bitacoraId && isValidId(data.bitacoraId)
+        && data.hora is string && data.hora.size() >= 4 && data.hora.size() <= 10
+        && isValidDateStr(data.fecha)
+        && data.categoria is string && data.categoria in ['ANOMALÍA', 'PENDIENTE', 'AJUSTE', 'MANTENIMIENTO', 'PRODUCCIÓN']
+        && data.titulo is string && data.titulo.size() >= 1 && data.titulo.size() <= 160
+        && data.descripcion is string && data.descripcion.size() <= 1000
+        && data.responsable is string && data.responsable.size() >= 1 && data.responsable.size() <= 120
+        && data.estado is string && data.estado in ['Abierto', 'En seguimiento', 'Cerrado']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidIncidencia(data, bitacoraId) {
+      return data.keys().hasAll(['ownerId', 'bitacoraId', 'hora', 'descripcion', 'maquina', 'estado', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'bitacoraId', 'hora', 'descripcion', 'maquina', 'estado', 'createdAt', 'updatedAt'])
+        && isValidId(data.ownerId)
+        && data.bitacoraId == bitacoraId && isValidId(data.bitacoraId)
+        && data.hora is string && data.hora.size() >= 4 && data.hora.size() <= 10
+        && data.descripcion is string && data.descripcion.size() >= 1 && data.descripcion.size() <= 500
+        && data.maquina is string && data.maquina.size() >= 1 && data.maquina.size() <= 80
+        && data.estado is string && data.estado in ['Pendiente', 'En proceso', 'Resuelto']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidProduccion(data, bitacoraId) {
+      return data.keys().hasAll(['ownerId', 'bitacoraId', 'producto', 'meta', 'producido', 'cumplimiento', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'bitacoraId', 'producto', 'meta', 'producido', 'cumplimiento', 'createdAt', 'updatedAt'])
+        && isValidId(data.ownerId)
+        && data.bitacoraId == bitacoraId && isValidId(data.bitacoraId)
+        && data.producto is string && data.producto.size() >= 1 && data.producto.size() <= 140
+        && data.meta is number && data.meta >= 0
+        && data.producido is number && data.producido >= 0
+        && data.cumplimiento is number && data.cumplimiento >= 0
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMaquinaEstado(data, bitacoraId) {
+      return data.keys().hasAll(['ownerId', 'bitacoraId', 'nombre', 'estado', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'bitacoraId', 'nombre', 'estado', 'createdAt', 'updatedAt'])
+        && isValidId(data.ownerId)
+        && data.bitacoraId == bitacoraId && isValidId(data.bitacoraId)
+        && data.nombre is string && data.nombre.size() >= 1 && data.nombre.size() <= 80
+        && data.estado is string && data.estado in ['Operando', 'Detenida', 'Mantenimiento']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidFirma(data, bitacoraId) {
+      return data.keys().hasAll(['ownerId', 'bitacoraId', 'tipo', 'supervisor', 'dataUrl', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'bitacoraId', 'tipo', 'supervisor', 'dataUrl', 'createdAt', 'updatedAt'])
+        && isValidId(data.ownerId)
+        && data.bitacoraId == bitacoraId && isValidId(data.bitacoraId)
+        && data.tipo is string && data.tipo in ['saliente', 'entrante']
+        && data.supervisor is string && data.supervisor.size() <= 120
+        && data.dataUrl is string && data.dataUrl.size() <= 150000
+        && (data.dataUrl == '' || data.dataUrl.matches('^data:image/png;base64,[A-Za-z0-9+/=]+$'))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isBitacoraParentOwner(bitacoraId) {
+      return exists(/databases/$(database)/documents/bitacoras/$(bitacoraId))
+        && get(/databases/$(database)/documents/bitacoras/$(bitacoraId)).data.ownerId == request.auth.uid;
+    }
+
+    // --- Collection Rules ---
+
+    match /admins/{adminId} {
+      allow get: if isOwner(adminId) || isAdmin();
+      allow list, create, update, delete: if false;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidId(userId)
+        && isValidUserPublic(incoming(), userId)
+        && incoming().role == 'supervisor'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(userId)
+        && isValidUserPublic(incoming(), userId)
+        && (
+          isAdmin() || (
+            isOwner(userId)
+            && incoming().uid == existing().uid
+            && incoming().role == existing().role
+            && incoming().createdAt == existing().createdAt
+            && incoming().updatedAt == request.time
+            && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'area', 'updatedAt'])
+          )
+        );
+      allow delete: if isAdmin();
+
+      match /private/{docId} {
+        allow get: if isOwner(userId) || isAdmin();
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(docId)
+          && isValidUserPrivate(incoming(), userId)
+          && incoming().updatedAt == request.time;
+        allow update: if isVerifiedUser() && isValidId(userId) && isValidId(docId)
+          && isValidUserPrivate(incoming(), userId)
+          && (
+            isAdmin() || (
+              isOwner(userId)
+              && incoming().uid == existing().uid
+              && incoming().updatedAt == request.time
+              && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt'])
+            )
+          );
+        allow delete: if isAdmin();
+      }
+    }
+
+    match /supervisores/{supervisorId} {
+      allow get: if isVerifiedUser() && isValidId(supervisorId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isVerifiedUser() && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow create: if isVerifiedUser() && isValidId(supervisorId)
+        && isValidSupervisor(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(supervisorId)
+        && isValidSupervisor(incoming())
+        && (
+          isAdmin() || (
+            existing().ownerId == request.auth.uid
+            && incoming().ownerId == existing().ownerId
+            && incoming().createdAt == existing().createdAt
+            && incoming().updatedAt == request.time
+            && incoming().diff(existing()).affectedKeys().hasOnly(['nombre', 'area', 'turnoDefault', 'activo', 'updatedAt'])
+          )
+        );
+      allow delete: if isVerifiedUser() && isValidId(supervisorId) && (existing().ownerId == request.auth.uid || isAdmin());
+    }
+
+    match /turnos/{turnoId} {
+      allow get: if isVerifiedUser() && isValidId(turnoId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isVerifiedUser() && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow create: if isVerifiedUser() && isValidId(turnoId)
+        && isValidTurno(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(turnoId)
+        && isValidTurno(incoming())
+        && (
+          isAdmin() || (
+            existing().ownerId == request.auth.uid
+            && incoming().ownerId == existing().ownerId
+            && incoming().createdAt == existing().createdAt
+            && incoming().updatedAt == request.time
+            && incoming().diff(existing()).affectedKeys().hasOnly(['codigo', 'nombre', 'horario', 'activo', 'updatedAt'])
+          )
+        );
+      allow delete: if isVerifiedUser() && isValidId(turnoId) && (existing().ownerId == request.auth.uid || isAdmin());
+    }
+
+    match /maquinas/{maquinaId} {
+      allow get: if isVerifiedUser() && isValidId(maquinaId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isVerifiedUser() && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow create: if isVerifiedUser() && isValidId(maquinaId)
+        && isValidMaquinaCatalogo(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(maquinaId)
+        && isValidMaquinaCatalogo(incoming())
+        && (
+          isAdmin() || (
+            existing().ownerId == request.auth.uid
+            && incoming().ownerId == existing().ownerId
+            && incoming().createdAt == existing().createdAt
+            && incoming().updatedAt == request.time
+            && incoming().diff(existing()).affectedKeys().hasOnly(['codigo', 'area', 'estadoDefault', 'activo', 'updatedAt'])
+          )
+        );
+      allow delete: if isVerifiedUser() && isValidId(maquinaId) && (existing().ownerId == request.auth.uid || isAdmin());
+    }
+
+    match /bitacoras/{bitacoraId} {
+      allow get: if isVerifiedUser() && isValidId(bitacoraId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isVerifiedUser() && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow create: if isVerifiedUser() && isValidId(bitacoraId)
+        && isValidBitacora(incoming())
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(bitacoraId)
+        && isValidBitacora(incoming())
+        && (
+          isAdmin() || (
+            existing().ownerId == request.auth.uid
+            && existing().estado != 'cerrada'
+            && incoming().ownerId == existing().ownerId
+            && incoming().createdAt == existing().createdAt
+            && incoming().updatedAt == request.time
+            && (
+              // Action: Update general info, notes, checklist & summary
+              incoming().diff(existing()).affectedKeys().hasOnly([
+                'folio', 'areaLinea', 'fecha', 'turnoSaliente', 'turnoEntrante',
+                'supervisorSaliente', 'supervisorEntrante', 'notas', 'estado',
+                'equiposLimpios', 'herramientasCompletas', 'materialAbastecido', 'sinRiesgosSeguridad',
+                'totalProduccion', 'cumplimientoPromedio', 'totalIncidencias', 'incidenciasPendientes', 'maquinasDetenidas',
+                'updatedAt'
+              ]) ||
+              // Action: Update summary metrics only
+              incoming().diff(existing()).affectedKeys().hasOnly([
+                'totalProduccion', 'cumplimientoPromedio', 'totalIncidencias', 'incidenciasPendientes', 'maquinasDetenidas', 'updatedAt'
+              ])
+            )
+          )
+        );
+      allow delete: if isVerifiedUser() && isValidId(bitacoraId) && (existing().ownerId == request.auth.uid || isAdmin());
+
+      match /eventos/{eventoId} {
+        allow get: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(eventoId) && (existing().ownerId == request.auth.uid || isAdmin());
+        allow list: if isVerifiedUser() && (resource.data.ownerId == request.auth.uid || isAdmin());
+        allow create: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(eventoId)
+          && isValidEvento(incoming(), bitacoraId)
+          && incoming().ownerId == request.auth.uid
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && isBitacoraParentOwner(bitacoraId);
+        allow update: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(eventoId)
+          && isValidEvento(incoming(), bitacoraId)
+          && (
+            isAdmin() || (
+              isBitacoraParentOwner(bitacoraId)
+              && incoming().ownerId == existing().ownerId
+              && incoming().bitacoraId == existing().bitacoraId
+              && incoming().createdAt == existing().createdAt
+              && incoming().updatedAt == request.time
+              && (
+                incoming().diff(existing()).affectedKeys().hasOnly(['hora', 'fecha', 'categoria', 'titulo', 'descripcion', 'responsable', 'estado', 'updatedAt']) ||
+                incoming().diff(existing()).affectedKeys().hasOnly(['estado', 'updatedAt'])
+              )
+            )
+          );
+        allow delete: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(eventoId) && (isBitacoraParentOwner(bitacoraId) || isAdmin());
+      }
+
+      match /incidencias/{incidenciaId} {
+        allow get: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(incidenciaId) && (existing().ownerId == request.auth.uid || isAdmin());
+        allow list: if isVerifiedUser() && (resource.data.ownerId == request.auth.uid || isAdmin());
+        allow create: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(incidenciaId)
+          && isValidIncidencia(incoming(), bitacoraId)
+          && incoming().ownerId == request.auth.uid
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && isBitacoraParentOwner(bitacoraId);
+        allow update: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(incidenciaId)
+          && isValidIncidencia(incoming(), bitacoraId)
+          && (
+            isAdmin() || (
+              isBitacoraParentOwner(bitacoraId)
+              && incoming().ownerId == existing().ownerId
+              && incoming().bitacoraId == existing().bitacoraId
+              && incoming().createdAt == existing().createdAt
+              && incoming().updatedAt == request.time
+              && (
+                incoming().diff(existing()).affectedKeys().hasOnly(['hora', 'descripcion', 'maquina', 'estado', 'updatedAt']) ||
+                incoming().diff(existing()).affectedKeys().hasOnly(['estado', 'updatedAt'])
+              )
+            )
+          );
+        allow delete: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(incidenciaId) && (isBitacoraParentOwner(bitacoraId) || isAdmin());
+      }
+
+      match /produccion/{produccionId} {
+        allow get: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(produccionId) && (existing().ownerId == request.auth.uid || isAdmin());
+        allow list: if isVerifiedUser() && (resource.data.ownerId == request.auth.uid || isAdmin());
+        allow create: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(produccionId)
+          && isValidProduccion(incoming(), bitacoraId)
+          && incoming().ownerId == request.auth.uid
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && isBitacoraParentOwner(bitacoraId);
+        allow update: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(produccionId)
+          && isValidProduccion(incoming(), bitacoraId)
+          && (
+            isAdmin() || (
+              isBitacoraParentOwner(bitacoraId)
+              && incoming().ownerId == existing().ownerId
+              && incoming().bitacoraId == existing().bitacoraId
+              && incoming().createdAt == existing().createdAt
+              && incoming().updatedAt == request.time
+              && incoming().diff(existing()).affectedKeys().hasOnly(['producto', 'meta', 'producido', 'cumplimiento', 'updatedAt'])
+            )
+          );
+        allow delete: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(produccionId) && (isBitacoraParentOwner(bitacoraId) || isAdmin());
+      }
+
+      match /maquinas/{maquinaId} {
+        allow get: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(maquinaId) && (existing().ownerId == request.auth.uid || isAdmin());
+        allow list: if isVerifiedUser() && (resource.data.ownerId == request.auth.uid || isAdmin());
+        allow create: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(maquinaId)
+          && isValidMaquinaEstado(incoming(), bitacoraId)
+          && incoming().ownerId == request.auth.uid
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && isBitacoraParentOwner(bitacoraId);
+        allow update: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(maquinaId)
+          && isValidMaquinaEstado(incoming(), bitacoraId)
+          && (
+            isAdmin() || (
+              isBitacoraParentOwner(bitacoraId)
+              && incoming().ownerId == existing().ownerId
+              && incoming().bitacoraId == existing().bitacoraId
+              && incoming().createdAt == existing().createdAt
+              && incoming().updatedAt == request.time
+              && incoming().diff(existing()).affectedKeys().hasOnly(['nombre', 'estado', 'updatedAt'])
+            )
+          );
+        allow delete: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(maquinaId) && (isBitacoraParentOwner(bitacoraId) || isAdmin());
+      }
+
+      match /firmas/{firmaId} {
+        allow get: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(firmaId) && (existing().ownerId == request.auth.uid || isAdmin());
+        allow list: if isVerifiedUser() && (resource.data.ownerId == request.auth.uid || isAdmin());
+        allow create: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(firmaId)
+          && isValidFirma(incoming(), bitacoraId)
+          && incoming().ownerId == request.auth.uid
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && isBitacoraParentOwner(bitacoraId);
+        allow update: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(firmaId)
+          && isValidFirma(incoming(), bitacoraId)
+          && (
+            isAdmin() || (
+              isBitacoraParentOwner(bitacoraId)
+              && incoming().ownerId == existing().ownerId
+              && incoming().bitacoraId == existing().bitacoraId
+              && incoming().tipo == existing().tipo
+              && incoming().createdAt == existing().createdAt
+              && incoming().updatedAt == request.time
+              && incoming().diff(existing()).affectedKeys().hasOnly(['supervisor', 'dataUrl', 'updatedAt'])
+            )
+          );
+        allow delete: if isVerifiedUser() && isValidId(bitacoraId) && isValidId(firmaId) && (isBitacoraParentOwner(bitacoraId) || isAdmin());
+      }
+    }
+  }
+}
